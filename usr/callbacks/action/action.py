@@ -209,8 +209,9 @@ class every_callback(Callback.Callback):
         var_name = "first_every_invoke" + str(stack.cur_layer())
         first_every_invoke = stack.get_value(var_name)
         if first_every_invoke is None:
+            first_every_invoke = True
+            stack.set_var(var_name, False)
             self._home.publish_msg(cmd, u"循环建立:" + cmd)
-            stack.set_var(var_name, True)
 
         # INFO("every_callback invoke:%s" % (msg, ))
         if msg.endswith(u"天"):
@@ -285,14 +286,13 @@ class every_callback(Callback.Callback):
             self._home.publish_msg(cmd, u"时间格式有误")
             return False, False
 
-        if stack.get_value(var_name) is False:
+        if first_every_invoke is False:
             threading.current_thread().waitUtil(t)
             if threading.current_thread().stopped():
                 return False, False
             return True, True
         else:
-            INFO("new loop for %d sec" % (t, ))
-            stack.set_var(var_name, False)
+            INFO("new loop for %d sec, invoke now" % (t, ))
             if threading.current_thread().stopped():
                 return False, False
             return True, True
@@ -415,17 +415,35 @@ class lower_callback(Callback.Callback):
     def callback(self, cmd, target, pre_value):
         return True, "lower"
 
+class geo_location_callback(Callback.Callback):
+    def callback(self, cmd, action, target, msg, pre_value):
+        if Util.empty_str(target):
+            INFO("empty geo location target.")
+            return False
+        
+        if msg is None or len(msg) == 0:
+            INFO("send geo location request to %s" % target)
+            # self._home.publish_msg(cmd, u"发起定位:%s" % target)
+            self._home.publish_msg(cmd, target, cmd_type="req_geo")
+            return True, "geo_location"
+        else:
+            return True
+
+
 class location_callback(Callback.Callback):
     def callback(self, cmd, action, target, msg, pre_value):
         if Util.empty_str(target):
             INFO("empty location target.")
             self._home.publish_msg(cmd, u"无定位目标")
             return False
-
-        INFO("send location request to %s" % target)
-        # self._home.publish_msg(cmd, u"发起定位:%s" % target)
-        self._home.publish_msg(cmd, target, cmd_type="req_loc")
-        return True, "location"
+        
+        if msg is None or len(msg) == 0:
+            INFO("send location request to %s" % target)
+            # self._home.publish_msg(cmd, u"发起定位:%s" % target)
+            self._home.publish_msg(cmd, target, cmd_type="req_loc")
+            return True, "location"
+        else:
+            return True
 
 
 class mute_callback(Callback.Callback):
